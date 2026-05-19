@@ -1,0 +1,5 @@
+Age,BMI,BloodPressure,Gender,Gender,Status
+35,28.5,120,Male,Male,
+42,,130,Female,Female,Control
+,22.0,,Male,Male,Treatment
+50,29.1,140,,Female,

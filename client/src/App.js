@@ -9,10 +9,6 @@ function App() {
   return (
     <Router>
       <div className="App">
-        <header className="app-header">
-          <h1>Virtual Twins Validation Platform</h1>
-          <p>Thesis Implementation - Data Analysis & Validation</p>
-        </header>
         <Routes>
           <Route path="/" element={<ProjectSetup />} />
           <Route path="/config" element={<DatasetConfig />} />
