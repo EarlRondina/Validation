@@ -31,6 +31,7 @@ const Results = () => {
     if (loadingMessages.length === 0) {
       runAnalysis();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   useEffect(() => {
@@ -230,10 +231,6 @@ const Results = () => {
       return "This explains the binary Treatment Recommendation Tree. It shows which characteristics most strongly dictate the clinical recommendation (whether a patient falls above or below the median treatment effect).";
     }
   };
-
-  const benchmarkInterpretation = getR2Interpretation(results.benchmark_r2);
-  const vtInterpretation = getR2Interpretation(currentMethodResults.vt_method_r2);
-
   return (
     <div className="results">
       <div className="results-container">
@@ -394,84 +391,100 @@ const Results = () => {
 
         {activeTab === 'overview' ? (
           <>
-            <div className="results-summary">
-              <div className="summary-cards">
-                <div className="summary-card">
-                  <h3>Benchmark R²</h3>
-                  <div className={`r2-score ${benchmarkInterpretation.level}`}>
-                    {results.benchmark_r2}
+            <div className="results-summary" style={{ marginBottom: '30px' }}>
+              <h3 style={{ color: '#2c3e50', fontSize: '1.25rem', marginBottom: '20px', textAlign: 'left' }}>
+                Causal Performance & Validation Metrics
+              </h3>
+              <div className="summary-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                <div className="summary-card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: 'none', padding: '24px', borderRadius: '12px' }}>
+                  <h3 style={{ fontSize: '13px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px 0', fontWeight: '600' }}>
+                    Recommendation Accuracy
+                  </h3>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#6366f1', margin: '0 0 8px 0', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    {currentMethodResults.accuracy?.value != null ? (currentMethodResults.accuracy.value * 100).toFixed(2) + '%' : 'N/A'}
                   </div>
-                  <span className="interpretation">
-                    {benchmarkInterpretation.text}
+                  <span style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.4', display: 'block' }}>
+                    Measures correct classification of treatment responders vs. non-responders.
                   </span>
                 </div>
                 
-                <div className="summary-card primary">
-                  <h3>VT Method R²</h3>
-                  <div className={`r2-score ${vtInterpretation.level}`}>
-                    {currentMethodResults.vt_method_r2}
+                <div className="summary-card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: 'none', padding: '24px', borderRadius: '12px' }}>
+                  <h3 style={{ fontSize: '13px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px 0', fontWeight: '600' }}>
+                    Qini Uplift Score
+                  </h3>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#0ea5e9', margin: '0 0 8px 0', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    {currentMethodResults.qini_score != null ? currentMethodResults.qini_score.toFixed(4) : 'N/A'}
                   </div>
-                  <span className="interpretation">
-                    {vtInterpretation.text}
+                  <span style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.4', display: 'block' }}>
+                    Measures the model's ability to prioritize patients for maximum treatment uplift.
+                  </span>
+                </div>
+                
+                <div className="summary-card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: 'none', padding: '24px', borderRadius: '12px' }}>
+                  <h3 style={{ fontSize: '13px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px 0', fontWeight: '600' }}>
+                    Validation Slope (β₁)
+                  </h3>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981', margin: '0 0 8px 0', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    {currentMethodResults.regression?.slope != null ? currentMethodResults.regression.slope.toFixed(4) : 'N/A'}
+                  </div>
+                  <span style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.4', display: 'block' }}>
+                    Indicates calibration of predicted Individual Treatment Effects (ITE) against pseudo-observed effects.
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="performance-comparison">
-              <h3>Model Performance Comparison</h3>
-              <div className="comparison-chart">
-                <div className="chart-bars">
-                  <div className="bar-group">
-                    <div className="bar-label">Benchmark</div>
-                    <div className="bar-container">
-                      <div 
-                        className="bar benchmark"
-                        style={{ width: `${Math.max(results.benchmark_r2 * 100, 5)}%` }}
-                      ></div>
-                      <span className="bar-value">{results.benchmark_r2}</span>
+            <div className="analysis-details" style={{ marginTop: '30px' }}>
+              <h3 style={{ color: '#2c3e50', fontSize: '1.25rem', marginBottom: '20px', textAlign: 'left' }}>
+                Dataset & Configuration Overview
+              </h3>
+              <div className="details-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', background: 'transparent', padding: 0 }}>
+                <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'left' }}>
+                  <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', fontWeight: '600' }}>
+                    Dataset Characteristics
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontWeight: '500' }}>Initial Sample Size:</span>
+                      <span style={{ color: '#1e293b', fontWeight: '700' }}>{results.sample_size?.toLocaleString()} patients</span>
                     </div>
-                  </div>
-                  <div className="bar-group">
-                    <div className="bar-label">VT Method</div>
-                    <div className="bar-container">
-                      <div 
-                        className="bar vt-method"
-                        style={{ width: `${Math.max(currentMethodResults.vt_method_r2 * 100, 5)}%` }}
-                      ></div>
-                      <span className="bar-value">{currentMethodResults.vt_method_r2}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontWeight: '500' }}>Trimmed Sample Size:</span>
+                      <span style={{ color: '#1e293b', fontWeight: '700' }}>{results.trimmed_size?.toLocaleString()} patients</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontWeight: '500' }}>Trimmed Outliers:</span>
+                      <span style={{ color: '#e11d48', fontWeight: '700' }}>{results.trimmed_count} patients</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontWeight: '500' }}>Number of Feature Covariates:</span>
+                      <span style={{ color: '#1e293b', fontWeight: '700' }}>{results.feature_count} variables</span>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="analysis-details">
-              <h3>Analysis Details</h3>
-              <div className="details-grid">
-                <div className="detail-item">
-                  <span className="detail-label">Sample Size:</span>
-                  <span className="detail-value">{results.sample_size.toLocaleString()}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Trimmed Size (positivity):</span>
-                  <span className="detail-value">{results.trimmed_size.toLocaleString()}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Trimmed Outliers:</span>
-                  <span className="detail-value">{results.trimmed_count}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Features:</span>
-                  <span className="detail-value">{results.feature_count}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Outcome Column:</span>
-                  <span className="detail-value">{analysisConfig?.outcome_column}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Intervention Column:</span>
-                  <span className="detail-value">{analysisConfig?.intervention_column}</span>
+                <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'left' }}>
+                  <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', fontWeight: '600' }}>
+                    Variable & Method Configuration
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontWeight: '500' }}>Outcome Variable:</span>
+                      <span style={{ color: '#1e293b', fontWeight: '700', fontFamily: 'monospace', background: '#e2e8f0', padding: '3px 8px', borderRadius: '6px', fontSize: '13px' }}>{analysisConfig?.outcome_column}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontWeight: '500' }}>Intervention Variable:</span>
+                      <span style={{ color: '#1e293b', fontWeight: '700', fontFamily: 'monospace', background: '#e2e8f0', padding: '3px 8px', borderRadius: '6px', fontSize: '13px' }}>{analysisConfig?.intervention_column}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontWeight: '500' }}>Causal Estimation Method:</span>
+                      <span style={{ color: '#4f46e5', fontWeight: '700' }}>{selectedMethod === 'kfold' ? 'K-Fold Method' : selectedMethod.charAt(0).toUpperCase() + selectedMethod.slice(1) + ' Method'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontWeight: '500' }}>Uplift Split Rule:</span>
+                      <span style={{ color: '#1e293b', fontWeight: '700' }}>Median ITE Split</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
