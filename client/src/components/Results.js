@@ -13,6 +13,8 @@ const Results = () => {
   const [error, setError] = useState('');
   const [analysisConfig, setAnalysisConfig] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedShapModel, setSelectedShapModel] = useState('rf');
+  const [fullscreenPlot, setFullscreenPlot] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -191,6 +193,44 @@ const Results = () => {
 
   const currentMethodResults = results.methods[selectedMethod];
 
+  const handleBackToConfig = () => {
+    const confirmBack = window.confirm("Are you sure you want to return to the dataset configuration tab? Your current analysis results will be lost.");
+    if (confirmBack) {
+      navigate('/config');
+    }
+  };
+
+  const getActiveShapData = () => {
+    const viz = currentMethodResults?.visualizations;
+    if (!viz) return null;
+    
+    if (selectedShapModel === 'rf' && viz.shap_rf) return viz.shap_rf;
+    if (selectedShapModel === 'regression' && viz.shap_regression_tree) return viz.shap_regression_tree;
+    if (selectedShapModel === 'classification' && viz.shap_classification_tree) return viz.shap_classification_tree;
+    
+    // Fallback for older formats
+    if (selectedShapModel === 'regression' && viz.shap_summary) {
+      return {
+        shap_summary: viz.shap_summary,
+        shap_dependence: viz.shap_dependence,
+        top_features: viz.top_features
+      };
+    }
+    return null;
+  };
+
+  const shapData = getActiveShapData();
+
+  const getShapDescription = () => {
+    if (selectedShapModel === 'rf') {
+      return "This explains the primary predictive Random Forest model. It highlights how patient covariates, in conjunction with their treatment assignment (Intervention_encoded), influence the predicted target outcome.";
+    } else if (selectedShapModel === 'regression') {
+      return "This explains the ITE Regression Decision Tree model. It demonstrates which patient characteristics are key in explaining and predicting the continuous Individual Treatment Effect (ITE).";
+    } else {
+      return "This explains the binary Treatment Recommendation Tree. It shows which characteristics most strongly dictate the clinical recommendation (whether a patient falls above or below the median treatment effect).";
+    }
+  };
+
   const benchmarkInterpretation = getR2Interpretation(results.benchmark_r2);
   const vtInterpretation = getR2Interpretation(currentMethodResults.vt_method_r2);
 
@@ -331,7 +371,7 @@ const Results = () => {
               transition: 'all 0.2s ease-in-out'
             }}
           >
-            Decision Tree
+            Regression Tree
           </button>
           <button
             onClick={() => setActiveTab('shap')}
@@ -403,25 +443,6 @@ const Results = () => {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="axioms-validation">
-              <h3>Axiom Validation</h3>
-              <div className="axioms-list">
-                {Object.entries(currentMethodResults.axioms).map(([axiom, passed], index) => (
-                  <div key={index} className={`axiom-item ${passed ? 'passed' : 'failed'}`}>
-                    <div className="axiom-status">
-                      {passed ? '✓' : '✗'}
-                    </div>
-                    <div className="axiom-content">
-                      <span className="axiom-name">{axiom}</span>
-                      <span className={`axiom-result ${passed ? 'pass' : 'fail'}`}>
-                        {passed ? 'PASSED' : 'FAILED'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
 
@@ -756,7 +777,7 @@ const Results = () => {
             border: '1px solid #f1f5f9'
           }}>
             <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#1e293b' }}>
-              Decision Tree
+              Regression Tree
             </h3>
             <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '0 0 15px 0' }}>
               This regression decision tree predicts the continuous Individual Treatment Effect (ITE) directly from patient characteristics.
@@ -781,55 +802,303 @@ const Results = () => {
             padding: '24px',
             borderRadius: '12px',
             boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
-            border: '1px solid #f1f5f9'
+            border: '1px solid #f1f5f9',
+            textAlign: 'left'
           }}>
-            <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#1e293b' }}>
-              SHAP Feature Importance
-            </h3>
-            <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '0 0 15px 0' }}>
-              SHAP (SHapley Additive exPlanations) values show the impact of each feature on the model's prediction of Individual Treatment Effect. Features are ordered by their overall importance.
-            </p>
-            {currentMethodResults.visualizations?.shap_summary ? (
-              <div style={{ textAlign: 'center', width: '100%', overflowX: 'auto' }}>
-                <img 
-                  src={currentMethodResults.visualizations.shap_summary} 
-                  alt="SHAP Summary Plot" 
-                  style={{ maxWidth: '100%', height: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }} 
-                />
+            <div className="axioms-validation" style={{ marginTop: '0px', marginBottom: '24px' }}>
+              <h3>Axiom Validation</h3>
+              <div className="axioms-list">
+                {Object.entries(currentMethodResults.axioms).map(([axiom, passed], index) => (
+                  <div key={index} className={`axiom-item ${passed ? 'passed' : 'failed'}`}>
+                    <div className="axiom-status">
+                      {passed ? '✓' : '✗'}
+                    </div>
+                    <div className="axiom-content">
+                      <span className="axiom-name">{axiom}</span>
+                      <span className={`axiom-result ${passed ? 'pass' : 'fail'}`}>
+                        {passed ? 'PASSED' : 'FAILED'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
+
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#1e293b' }}>
+              SHAP Explanations & Model Interpretation
+            </h3>
+            <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '0 0 20px 0' }}>
+              SHAP (SHapley Additive exPlanations) values provide local, mathematically consistent explanations of feature impacts by assigning an attribution score to each characteristic.
+            </p>
+
+            {/* SHAP MODEL SUB-SELECTOR */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '10px', 
+              marginBottom: '25px', 
+              padding: '4px', 
+              background: '#f1f5f9', 
+              borderRadius: '10px', 
+              width: 'fit-content',
+              flexWrap: 'wrap'
+            }}>
+              {[
+                { id: 'rf', label: `${selectedMethod === 'kfold' ? 'K-Fold' : selectedMethod.charAt(0).toUpperCase() + selectedMethod.slice(1)} RF Model` },
+                { id: 'regression', label: 'Regression Tree' },
+                { id: 'classification', label: 'Classification Tree' }
+              ].map(model => (
+                <button
+                  key={model.id}
+                  onClick={() => setSelectedShapModel(model.id)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: selectedShapModel === model.id ? '#6366f1' : 'transparent',
+                    boxShadow: selectedShapModel === model.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    color: selectedShapModel === model.id ? '#ffffff' : '#64748b',
+                    fontWeight: selectedShapModel === model.id ? '700' : '500',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {model.label}
+                </button>
+              ))}
+            </div>
+
+            {shapData ? (
+              <>
+                <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: '0 0 20px 0', paddingLeft: '12px', borderLeft: '3px solid #6366f1', background: '#f8fafc', padding: '10px 14px', borderRadius: '4px 8px 8px 4px' }}>
+                  <strong>Model Context:</strong> {getShapDescription()}
+                </p>
+
+                {/* SHAP Summary Plot */}
+                <div style={{ 
+                  background: '#ffffff', 
+                  border: '1px solid #f1f5f9', 
+                  borderRadius: '12px', 
+                  padding: '20px', 
+                  marginBottom: '30px', 
+                  textAlign: 'center', 
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' 
+                }}>
+                  <h4 style={{ margin: '0 0 15px 0', fontSize: '15px', color: '#334155', fontWeight: '700', textAlign: 'left' }}>
+                    SHAP Summary Plot
+                  </h4>
+                  <div style={{ overflowX: 'auto', width: '100%' }}>
+                    <img 
+                      src={shapData.shap_summary} 
+                      alt="SHAP Summary Plot" 
+                      style={{ maxWidth: '100%', height: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }} 
+                    />
+                  </div>
+                </div>
+
+                {/* SHAP Dependence Plots */}
+                <div style={{ marginTop: '30px' }}>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#1e293b', fontWeight: '700' }}>
+                    Top 3 Feature Dependence Plots
+                  </h4>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px 0', lineHeight: '1.5' }}>
+                    Dependence plots illustrate how a feature's raw value (x-axis) influences its SHAP prediction impact (y-axis). Colors show the value of the most strongly interacting feature.
+                  </p>
+                  {shapData.shap_dependence && Object.keys(shapData.shap_dependence).length > 0 ? (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                      gap: '20px',
+                      marginTop: '15px'
+                    }}>
+                      {shapData.top_features?.map((feat, idx) => {
+                        const plotImg = shapData.shap_dependence[feat];
+                        if (!plotImg) return null;
+                        return (
+                          <div 
+                            key={feat}
+                            className="dependence-card"
+                            onClick={() => setFullscreenPlot({ img: plotImg, title: `SHAP Dependence: ${feat} (${selectedShapModel === 'rf' ? 'RF' : selectedShapModel === 'regression' ? 'Regression Tree' : 'Classification Tree'})` })}
+                            style={{
+                              background: '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '12px',
+                              padding: '16px',
+                              cursor: 'pointer',
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                              position: 'relative',
+                              overflow: 'hidden'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-4px)';
+                              e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.08)';
+                              e.currentTarget.style.borderColor = '#6366f1';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'none';
+                              e.currentTarget.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
+                              e.currentTarget.style.borderColor = '#e2e8f0';
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                              <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
+                                {feat}
+                              </span>
+                              <span style={{
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                color: '#6366f1',
+                                background: '#e0e7ff',
+                                padding: '2px 8px',
+                                borderRadius: '12px'
+                              }}>
+                                Rank #{idx + 1}
+                              </span>
+                            </div>
+                            <div style={{ textAlign: 'center', width: '100%', overflow: 'hidden', borderRadius: '6px', background: '#ffffff', border: '1px solid #f1f5f9' }}>
+                              <img 
+                                src={plotImg} 
+                                alt={`SHAP Dependence for ${feat}`} 
+                                style={{ width: '100%', height: 'auto', display: 'block' }} 
+                              />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '10px', fontSize: '11px', color: '#828fa9', gap: '4px' }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                              </svg>
+                              Click to zoom
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '30px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', color: '#64748b', fontSize: '13px' }}>
+                      No feature dependence plots available.
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
               <div style={{ padding: '40px', textAlign: 'center', background: '#f8fafc', borderRadius: '8px', color: '#64748b' }}>
-                Visualization not available for this attempt.
+                SHAP visualizations are not available for this model type under the selected attempt.
               </div>
             )}
           </div>
         ) : null}
 
-        <div className="results-actions" style={{ marginTop: '30px' }}>
-          <button 
-            onClick={downloadResults}
-            className="btn btn-secondary"
-          >
-            Download Results
-          </button>
-          <button 
-            onClick={() => navigate('/')}
-            className="btn btn-primary"
-          >
-            New Analysis
-          </button>
-        </div>
-
-        <div className="results-footer">
-          <p className="disclaimer">
-            <strong>Note:</strong> This is a simplified Virtual Twins implementation for thesis validation. 
-            Results are for demonstration and academic purposes. For production use, consider more 
-            sophisticated modeling approaches and thorough validation procedures.
-          </p>
-        </div>
+      <div className="results-actions" style={{ marginTop: '30px' }}>
+        <button 
+          onClick={handleBackToConfig}
+          className="btn btn-secondary"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Back to Configuration
+        </button>
+        <button 
+          onClick={downloadResults}
+          className="btn btn-secondary"
+        >
+          Download Results
+        </button>
+        <button 
+          onClick={() => navigate('/')}
+          className="btn btn-primary"
+        >
+          New Analysis
+        </button>
       </div>
+
+      <div className="results-footer">
+        <p className="disclaimer">
+          <strong>Note:</strong> This is a simplified Virtual Twins implementation for thesis validation. 
+          Results are for demonstration and academic purposes. For production use, consider more 
+          sophisticated modeling approaches and thorough validation procedures.
+        </p>
+      </div>
+
+      {/* FULLSCREEN PLOT MODAL */}
+      {fullscreenPlot && (
+        <div 
+          onClick={() => setFullscreenPlot(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+            cursor: 'pointer'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '900px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative',
+              cursor: 'default'
+            }}
+          >
+            <button
+              onClick={() => setFullscreenPlot(null)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: '#f1f5f9',
+                border: 'none',
+                color: '#64748b',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#e2e8f0'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#f1f5f9'}
+            >
+              ×
+            </button>
+            <h3 style={{ margin: '0 0 15px 0', fontSize: '18px', color: '#1e293b', fontWeight: '800' }}>
+              {fullscreenPlot.title}
+            </h3>
+            <div style={{ textAlign: 'center', overflow: 'hidden', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#ffffff' }}>
+              <img 
+                src={fullscreenPlot.img} 
+                alt={fullscreenPlot.title} 
+                style={{ maxWidth: '100%', maxHeight: '70vh', height: 'auto', display: 'block', margin: '0 auto' }} 
+              />
+            </div>
+            <p style={{ margin: '15px 0 0 0', fontSize: '13px', color: '#64748b', textAlign: 'center' }}>
+              Click anywhere outside or the "×" button to close this preview.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  </div>
+);
 };
 
 export default Results;

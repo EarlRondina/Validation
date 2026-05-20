@@ -236,6 +236,7 @@ def run_analysis():
 
             attempts_results = []
             best_idx = 0
+            best_models = {}
             
             for i, params in enumerate(tuning_rounds):
                 yield json.dumps({"type": "status", "attempt": i + 1, "message": f"Training predictive models (Attempt {i + 1})..."}) + "\n"
@@ -285,6 +286,13 @@ def run_analysis():
                     
                 y_pred_1_kfold = p1_preds.mean(axis=1)
                 y_pred_0_kfold = p0_preds.mean(axis=1)
+                
+                current_models = {
+                    "simple": simple_model,
+                    "double_1": vt_model_1,
+                    "double_0": vt_model_0,
+                    "kfold_last": rf
+                }
                 
                 methods_preds = {
                     "simple": (y_pred_1_simple, y_pred_0_simple),
@@ -420,6 +428,7 @@ def run_analysis():
                 if axiom_consistency_double:
                     yield json.dumps({"type": "status", "attempt": i + 1, "message": "Desired outcome achieved! Finalizing results..."}) + "\n"
                     best_idx = i
+                    best_models = current_models
                     break
                 else:
                     if i < len(tuning_rounds) - 1:
@@ -427,6 +436,7 @@ def run_analysis():
                     else:
                         yield json.dumps({"type": "status", "attempt": i + 1, "message": "Max attempts reached. Returning best available models..."}) + "\n"
                         best_idx = i
+                        best_models = current_models
 
             # Generate Visualizations after loop
             yield json.dumps({"type": "status", "attempt": len(tuning_rounds), "message": "Generating visualizations..."}) + "\n"
@@ -439,6 +449,50 @@ def run_analysis():
                 import matplotlib.pyplot as plt
                 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier, plot_tree
                 import shap
+
+                def generate_shap_plots(model, X, title_suffix):
+                    # 1. SHAP Values
+                    explainer = shap.TreeExplainer(model)
+                    shap_values = explainer.shap_values(X)
+                    
+                    if isinstance(shap_values, list):
+                        shap_values_arr = shap_values[1] if len(shap_values) > 1 else shap_values[0]
+                    elif hasattr(shap_values, 'shape') and len(shap_values.shape) == 3:
+                        shap_values_arr = shap_values[:, :, 1] if shap_values.shape[2] > 1 else shap_values[:, :, 0]
+                    else:
+                        shap_values_arr = shap_values
+                        
+                    # 2. SHAP Summary Plot
+                    plt.figure(figsize=(10, 6))
+                    shap.summary_plot(shap_values_arr, X, show=False)
+                    plt.title(f"SHAP Summary Plot ({title_suffix})", fontsize=14)
+                    plt.tight_layout()
+                    buf = io.BytesIO()
+                    plt.savefig(buf, format='png', bbox_inches='tight')
+                    plt.close()
+                    summary_base64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode('utf-8')
+                    
+                    # 3. Top 3 Feature Dependence Plots
+                    mean_abs_shap = np.abs(shap_values_arr).mean(axis=0)
+                    top_3_idx = np.argsort(mean_abs_shap)[-3:][::-1]
+                    top_3_features = X.columns[top_3_idx].tolist()
+                    
+                    dependence_plots = {}
+                    for feat in top_3_features:
+                        plt.figure(figsize=(8, 5))
+                        shap.dependence_plot(feat, shap_values_arr, X, show=False)
+                        plt.title(f"SHAP Dependence: {feat} ({title_suffix})", fontsize=12)
+                        plt.tight_layout()
+                        buf = io.BytesIO()
+                        plt.savefig(buf, format='png', bbox_inches='tight')
+                        plt.close()
+                        dependence_plots[feat] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode('utf-8')
+                        
+                    return {
+                        "shap_summary": summary_base64,
+                        "shap_dependence": dependence_plots,
+                        "top_features": top_3_features
+                    }
 
                 for m_name in attempts_results[best_idx]["methods"]:
                     pite = np.array(attempts_results[best_idx]["methods"][m_name]["pite_list"])
@@ -467,45 +521,31 @@ def run_analysis():
                     plt.close()
                     ct_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
 
-                    # 3. SHAP Summary Plot
-                    explainer = shap.TreeExplainer(reg_SRF)
-                    shap_values = explainer.shap_values(X_test)
-                    plt.figure(figsize=(10, 6))
-                    shap.summary_plot(shap_values, X_test, show=False)
-                    plt.title(f"SHAP Summary Plot for ITE ({m_name.capitalize()} VT)", fontsize=14)
-                    plt.tight_layout()
-                    buf = io.BytesIO()
-                    plt.savefig(buf, format='png', bbox_inches='tight')
-                    plt.close()
-                    shap_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-
-                    # 4. Top 3 Feature Dependence Plots
-                    if isinstance(shap_values, list):
-                        shap_values_arr = shap_values[1] if len(shap_values) > 1 else shap_values[0]
-                    else:
-                        shap_values_arr = shap_values
+                    # 3. Generate SHAP for Regression Tree
+                    shap_reg = generate_shap_plots(reg_SRF, X_test, f"Regression Tree, {m_name.capitalize()} VT")
                     
-                    mean_abs_shap = np.abs(shap_values_arr).mean(axis=0)
-                    top_3_idx = np.argsort(mean_abs_shap)[-3:][::-1]
-                    top_3_features = X_test.columns[top_3_idx].tolist()
+                    # 4. Generate SHAP for Classification Tree
+                    shap_clf = generate_shap_plots(clf_SRF, X_test, f"Classification Tree, {m_name.capitalize()} VT")
                     
-                    dependence_plots = {}
-                    for feat in top_3_features:
-                        plt.figure(figsize=(8, 5))
-                        shap.dependence_plot(feat, shap_values_arr, X_test, show=False)
-                        plt.title(f"SHAP Dependence: {feat} ({m_name.capitalize()} VT)", fontsize=12)
-                        plt.tight_layout()
-                        buf = io.BytesIO()
-                        plt.savefig(buf, format='png', bbox_inches='tight')
-                        plt.close()
-                        dependence_plots[feat] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode('utf-8')
+                    # 5. Generate SHAP for RF Model
+                    shap_rf = None
+                    if best_models:
+                        try:
+                            if m_name == "simple" and "simple" in best_models:
+                                shap_rf = generate_shap_plots(best_models["simple"], X_test_bench, f"Simple RF, {m_name.capitalize()} VT")
+                            elif m_name == "double" and "double_1" in best_models:
+                                shap_rf = generate_shap_plots(best_models["double_1"], X_test, f"Double RF (Treated), {m_name.capitalize()} VT")
+                            elif m_name == "kfold" and "kfold_last" in best_models:
+                                shap_rf = generate_shap_plots(best_models["kfold_last"], X_test_bench, f"K-Fold RF, {m_name.capitalize()} VT")
+                        except Exception as shap_rf_e:
+                            print(f"Error generating SHAP for RF under {m_name}:", shap_rf_e)
 
                     attempts_results[best_idx]["methods"][m_name]["visualizations"] = {
                         "decision_tree": "data:image/png;base64," + dt_base64,
                         "classification_tree": "data:image/png;base64," + ct_base64,
-                        "shap_summary": "data:image/png;base64," + shap_base64,
-                        "shap_dependence": dependence_plots,
-                        "top_features": top_3_features
+                        "shap_regression_tree": shap_reg,
+                        "shap_classification_tree": shap_clf,
+                        "shap_rf": shap_rf
                     }
                     del attempts_results[best_idx]["methods"][m_name]["pite_list"]
 
