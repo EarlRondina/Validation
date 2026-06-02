@@ -319,6 +319,24 @@ const Results = () => {
             Model Overview
           </button>
           <button
+            onClick={() => setActiveTab('causal')}
+            className={`tab-btn ${activeTab === 'causal' ? 'active' : ''}`}
+            id="tab-causal-validation"
+            style={{
+              padding: '12px 16px',
+              fontSize: '15px',
+              fontWeight: '600',
+              border: 'none',
+              background: 'none',
+              borderBottom: activeTab === 'causal' ? '3px solid #6366f1' : '3px solid transparent',
+              color: activeTab === 'causal' ? '#4f46e5' : '#64748b',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out'
+            }}
+          >
+            Causal Validation
+          </button>
+          <button
             onClick={() => setActiveTab('classification_tree')}
             className={`tab-btn ${activeTab === 'classification_tree' ? 'active' : ''}`}
             style={{
@@ -373,28 +391,48 @@ const Results = () => {
 
         {activeTab === 'overview' ? (
           <>
-            {/* CORE AXIOMS DIAGNOSTICS */}
-            <div className="axioms-validation" style={{ marginTop: '0px', marginBottom: '30px', textAlign: 'left' }}>
-              <h3 style={{ color: '#2c3e50', fontSize: '1.25rem', marginBottom: '20px' }}>
-                Core Axiom Conformance Diagnostics
+            <div className="results-summary" style={{ marginBottom: '30px' }}>
+              <h3 style={{ color: '#2c3e50', fontSize: '1.25rem', marginBottom: '20px', textAlign: 'left' }}>
+                Causal Performance & Validation Metrics
               </h3>
-              <div className="axioms-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-                {Object.entries(currentMethodResults.axioms).map(([axiom, passed], index) => (
-                  <div key={index} className={`axiom-item ${passed ? 'passed' : 'failed'}`} style={{ margin: 0 }}>
-                    <div className="axiom-status">
-                      {passed ? '✓' : '✗'}
-                    </div>
-                    <div className="axiom-content">
-                      <span className="axiom-name">{axiom}</span>
-                      <span className={`axiom-result ${passed ? 'pass' : 'fail'}`}>
-                        {passed ? 'PASSED' : 'FAILED'}
-                      </span>
-                    </div>
+              <div className="summary-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                <div className="summary-card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: 'none', padding: '24px', borderRadius: '12px' }}>
+                  <h3 style={{ fontSize: '13px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px 0', fontWeight: '600' }}>
+                    Recommendation Accuracy
+                  </h3>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#6366f1', margin: '0 0 8px 0', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    {currentMethodResults.accuracy?.value != null ? (currentMethodResults.accuracy.value * 100).toFixed(2) + '%' : 'N/A'}
                   </div>
-                ))}
+                  <span style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.4', display: 'block' }}>
+                    Measures correct classification of treatment responders vs. non-responders.
+                  </span>
+                </div>
+                
+                <div className="summary-card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: 'none', padding: '24px', borderRadius: '12px' }}>
+                  <h3 style={{ fontSize: '13px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px 0', fontWeight: '600' }}>
+                    Qini Uplift Score
+                  </h3>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#0ea5e9', margin: '0 0 8px 0', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    {currentMethodResults.qini_score != null ? currentMethodResults.qini_score.toFixed(4) : 'N/A'}
+                  </div>
+                  <span style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.4', display: 'block' }}>
+                    Measures the model's ability to prioritize patients for maximum treatment uplift.
+                  </span>
+                </div>
+                
+                <div className="summary-card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', boxShadow: 'none', padding: '24px', borderRadius: '12px' }}>
+                  <h3 style={{ fontSize: '13px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px 0', fontWeight: '600' }}>
+                    Validation Slope (β₁)
+                  </h3>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981', margin: '0 0 8px 0', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    {currentMethodResults.regression?.slope != null ? currentMethodResults.regression.slope.toFixed(4) : 'N/A'}
+                  </div>
+                  <span style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.4', display: 'block' }}>
+                    Indicates calibration of predicted Individual Treatment Effects (ITE) against pseudo-observed effects.
+                  </span>
+                </div>
               </div>
             </div>
-
 
             <div className="analysis-details" style={{ marginTop: '30px' }}>
               <h3 style={{ color: '#2c3e50', fontSize: '1.25rem', marginBottom: '20px', textAlign: 'left' }}>
@@ -450,92 +488,271 @@ const Results = () => {
                 </div>
               </div>
             </div>
-            {/* EXPLAINABLE AI (XAI) SUITE */}
-            <div className="xai-suite" style={{ marginTop: '40px', textAlign: 'left' }}>
-              <h3 style={{ color: '#2c3e50', fontSize: '1.25rem', marginBottom: '20px' }}>
-                Explainable AI (XAI) & Interpretability Suite
+          </>
+        ) : activeTab === 'causal' ? (
+          <div className="causal-validation" style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '30px',
+            textAlign: 'left',
+            marginTop: '10px'
+          }}>
+            {/* 1. PROPENSITY SCORE OVERLAP & POSITIVITY */}
+            <div className="validation-section" style={{
+              background: '#ffffff',
+              padding: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+              border: '1px solid #f1f5f9'
+            }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#1e293b' }}>
+                1. Propensity Score Function & Overlap Trimming
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '24px', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <h4 style={{ margin: '0 0 10px 0', color: '#1e293b', fontSize: '16px', fontWeight: '700' }}>Treatment Recommendation Pathway</h4>
-                    <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 15px 0' }}>
-                      Uses a Decision Tree Classifier to partition patient characteristics based on treatment response predictions, creating clear, discrete recommendation pathways.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => setActiveTab('classification_tree')}
-                    style={{
-                      padding: '8px 16px',
-                      background: '#4f46e5',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      width: 'fit-content',
-                      transition: 'background 0.2s'
-                    }}
-                  >
-                    View Classification Tree →
-                  </button>
+              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '0 0 15px 0' }}>
+                The Propensity Score Function is the probability of receiving treatment given the covariates, serving as a balancing score to reduce confounding. To ensure the critical <strong>positivity assumption</strong> is met, a symmetric trimming rule is applied, restricting propensity scores to a range of 0.1 to 0.9.
+              </p>
+              
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '25px', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 300px' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Mathematical Definition (Equation 16):</span>
+                  <img src="/Pics/Equation_16.png" alt="Equation 16" style={{ maxHeight: '55px', display: 'block', margin: '12px 0' }} />
                 </div>
-
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '24px', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <h4 style={{ margin: '0 0 10px 0', color: '#1e293b', fontSize: '16px', fontWeight: '700' }}>Continuous Effect Tree</h4>
-                    <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 15px 0' }}>
-                      Maps the continuous Individual Treatment Effect (ITE) using a Decision Tree Regressor to identify patient sub-groups with the largest magnitude of expected benefit.
-                    </p>
+                <div style={{ flex: '1 1 300px', background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#475569' }}>Trimmed Sample Diagnostic</h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '13px', color: '#64748b' }}>Original Sample Count:</span>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>{results.sample_size}</span>
                   </div>
-                  <button 
-                    onClick={() => setActiveTab('decision_tree')}
-                    style={{
-                      padding: '8px 16px',
-                      background: '#4f46e5',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      width: 'fit-content',
-                      transition: 'background 0.2s'
-                    }}
-                  >
-                    View Regression Tree →
-                  </button>
-                </div>
-
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '24px', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <h4 style={{ margin: '0 0 10px 0', color: '#1e293b', fontSize: '16px', fontWeight: '700' }}>SHAP Feature Attribution</h4>
-                    <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 15px 0' }}>
-                      Provides mathematically rigorous, game-theoretic attributions for each patient feature, verifying axiom conformance and showing direct covariate influence.
-                    </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '13px', color: '#64748b' }}>Post-Trimming Count (0.1 - 0.9):</span>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>{results.trimmed_size}</span>
                   </div>
-                  <button 
-                    onClick={() => setActiveTab('shap')}
-                    style={{
-                      padding: '8px 16px',
-                      background: '#4f46e5',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      width: 'fit-content',
-                      transition: 'background 0.2s'
-                    }}
-                  >
-                    View SHAP Explanations →
-                  </button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '13px', color: '#64748b' }}>Excluded Outliers:</span>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#ef4444' }}>{results.trimmed_count} ({((results.trimmed_count / results.sample_size) * 100).toFixed(1)}%)</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </>
+
+            {/* 2. COVARIATE BALANCE (SMD) */}
+            <div className="validation-section" style={{
+              background: '#ffffff',
+              padding: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+              border: '1px solid #f1f5f9'
+            }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#1e293b' }}>
+                2. Covariate Balance Assessment (Standardized Mean Difference)
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '0 0 15px 0' }}>
+                The Standardized Mean Difference (SMD) is used to assess covariate balance between treatment and control groups. Standard diagnostics in epidemiology specify an SMD threshold of less than 0.1 or 0.2 to represent adequate balance.
+              </p>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '25px' }}>
+                <div style={{ flex: '1 1 300px' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Mathematical Definition (Equation 15):</span>
+                  <img src="/Pics/Equation_15.png" alt="Equation 15" style={{ maxHeight: '70px', display: 'block', margin: '12px 0' }} />
+                </div>
+                <div style={{ flex: '2 1 450px' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Covariate Balance Comparison Table</span>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '12px', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#475569' }}>
+                        <th style={{ padding: '8px' }}>Covariate</th>
+                        <th style={{ padding: '8px' }}>Pre-Trimming SMD</th>
+                        <th style={{ padding: '8px' }}>Post-Trimming SMD</th>
+                        <th style={{ padding: '8px' }}>Balance Status (&lt; 0.2)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.keys(results.smd_pre).map((cov, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '8px', fontWeight: '500', color: '#334155' }}>{cov}</td>
+                          <td style={{ padding: '8px', color: '#64748b' }}>{results.smd_pre[cov].toFixed(4)}</td>
+                          <td style={{ padding: '8px', color: '#10b981', fontWeight: '600' }}>{results.smd_post[cov].toFixed(4)}</td>
+                          <td style={{ padding: '8px' }}>
+                            <span style={{
+                              backgroundColor: results.smd_post[cov] < 0.2 ? '#d1fae5' : '#fee2e2',
+                              color: results.smd_post[cov] < 0.2 ? '#065f46' : '#991b1b',
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              display: 'inline-block'
+                            }}>
+                              {results.smd_post[cov] < 0.2 ? 'Balanced ✓' : 'Imbalanced ✗'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. MODEL ACCURACY */}
+            <div className="validation-section" style={{
+              background: '#ffffff',
+              padding: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+              border: '1px solid #f1f5f9'
+            }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#1e293b' }}>
+                3. Model Performance Evaluation (Directional Accuracy)
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '0 0 15px 0' }}>
+                Evaluates how accurately the model predicts a beneficial individual treatment effect (ITE) by calculating directional prediction accuracy. Clinical literature indicates a balanced accuracy of 65% to 67% as the threshold for clinical utility; achieving &gt;70% aligns with exceptional diagnostic standards.
+              </p>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '25px', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 300px' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Mathematical Definition (Equation 17):</span>
+                  <img src="/Pics/Equation_17.png" alt="Equation 17" style={{ maxHeight: '60px', display: 'block', margin: '12px 0' }} />
+                </div>
+                <div style={{ flex: '1 1 300px', display: 'flex', gap: '15px' }}>
+                  <div style={{
+                    flex: '1',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '8px',
+                    padding: '15px',
+                    textAlign: 'center'
+                  }}>
+                    <span style={{ fontSize: '12px', color: '#166534', fontWeight: '600' }}>Computed Accuracy</span>
+                    <div style={{ fontSize: '32px', fontWeight: '800', color: '#15803d', margin: '5px 0' }}>
+                      {(currentMethodResults.accuracy.value * 100).toFixed(1)}%
+                    </div>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      color: currentMethodResults.accuracy.value >= 0.7 ? '#166534' : '#991b1b',
+                      backgroundColor: currentMethodResults.accuracy.value >= 0.7 ? '#dcfce7' : '#fee2e2',
+                      padding: '2px 8px',
+                      borderRadius: '10px'
+                    }}>
+                      {currentMethodResults.accuracy.value >= 0.7 ? 'PASSED CLINICAL THRESHOLD' : 'MODERATE ACCURACY'}
+                    </span>
+                  </div>
+                  
+                  <div style={{ flex: '1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11px' }}>
+                    <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <div style={{ color: '#64748b' }}>TP</div>
+                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#334155' }}>{currentMethodResults.accuracy.tp}</div>
+                    </div>
+                    <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <div style={{ color: '#64748b' }}>FP</div>
+                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#334155' }}>{currentMethodResults.accuracy.fp}</div>
+                    </div>
+                    <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <div style={{ color: '#64748b' }}>FN</div>
+                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#334155' }}>{currentMethodResults.accuracy.fn}</div>
+                    </div>
+                    <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '4px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <div style={{ color: '#64748b' }}>TN</div>
+                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#334155' }}>{currentMethodResults.accuracy.tn}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. QINI SCORE */}
+            <div className="validation-section" style={{
+              background: '#ffffff',
+              padding: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+              border: '1px solid #f1f5f9'
+            }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#1e293b' }}>
+                4. Targeting Prioritization (Qini Uplift Coefficient)
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '0 0 15px 0' }}>
+                The Qini Score calculates the area between the model's cumulative treatment curve and a random assignment strategy. A higher Qini Score indicates that the model effectively prioritizes individuals most likely to benefit from the treatment.
+              </p>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '25px', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 300px' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Mathematical Definition (Equation 18):</span>
+                  <img src="/Pics/Equation_18.png" alt="Equation 18" style={{ maxHeight: '55px', display: 'block', margin: '12px 0' }} />
+                </div>
+                <div style={{ flex: '1 1 300px', background: '#faf5ff', padding: '15px', borderRadius: '8px', border: '1px solid #f3e8ff', textAlign: 'center' }}>
+                  <span style={{ fontSize: '12px', color: '#6b21a8', fontWeight: '600' }}>Calculated Qini Score</span>
+                  <div style={{ fontSize: '36px', fontWeight: '800', color: '#7e22ce', margin: '5px 0' }}>
+                    {currentMethodResults.qini_score.toFixed(4)}
+                  </div>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    color: '#6b21a8',
+                    backgroundColor: '#f3e8ff',
+                    padding: '2px 8px',
+                    borderRadius: '10px'
+                  }}>
+                    {currentMethodResults.qini_score > 0.1 ? 'SIGNIFICANT UPLIFT PRIORITIZATION ✓' : 'LOW PRIORITIZATION'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. REGRESSION VALIDATION */}
+            <div className="validation-section" style={{
+              background: '#ffffff',
+              padding: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+              border: '1px solid #f1f5f9'
+            }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#1e293b' }}>
+                5. Out-of-Sample Regression Validation (Kuhlemeier et al., 2024)
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.6', margin: '0 0 15px 0' }}>
+                Following the prediction approach of Kuhlemeier et al. (2024), we estimate pseudo-observed treatment effects (obs) on out-of-sample respondents using Nearest Neighbor (NN) matching on predictions. We then regress these pseudo-observed outcomes on predicted individual treatment effects (PITEs).
+              </p>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '25px', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 300px' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Mathematical Definition (Equation 19):</span>
+                  <img src="/Pics/Equation_19.png" alt="Equation 19" style={{ maxHeight: '55px', display: 'block', margin: '12px 0' }} />
+                </div>
+                
+                <div style={{ flex: '1.5 1 350px', display: 'flex', gap: '15px' }}>
+                  <div style={{ flex: '1', background: '#e0f2fe', padding: '15px', borderRadius: '8px', border: '1px solid #bae6fd', textAlign: 'center' }}>
+                    <span style={{ fontSize: '11px', color: '#0369a1', fontWeight: '600' }}>Validation Slope (β₁)</span>
+                    <div style={{ fontSize: '28px', fontWeight: '800', color: '#0284c7', margin: '5px 0' }}>
+                      {currentMethodResults.regression.slope.toFixed(4)}
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#0369a1' }}>Target: 1.0 (Perfect calibration)</span>
+                  </div>
+
+                  <div style={{ flex: '1', background: '#f0fdfa', padding: '15px', borderRadius: '8px', border: '1px solid #ccfbf1', textAlign: 'center' }}>
+                    <span style={{ fontSize: '11px', color: '#0f766e', fontWeight: '600' }}>Regression R²</span>
+                    <div style={{ fontSize: '28px', fontWeight: '800', color: '#0d9488', margin: '5px 0' }}>
+                      {(currentMethodResults.regression.r2 * 100).toFixed(1)}%
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#0f766e' }}>Out-of-Sample variance explained</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                marginTop: '15px',
+                background: '#f8fafc',
+                padding: '12px 18px',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                fontSize: '13px',
+                fontFamily: 'monospace',
+                color: '#334155'
+              }}>
+                <strong>Fitted Model Equation:</strong> obs = {currentMethodResults.regression.intercept >= 0 ? '+' : '-'} {Math.abs(currentMethodResults.regression.intercept).toFixed(4)} + {currentMethodResults.regression.slope.toFixed(4)} * PITE (R² = {(currentMethodResults.regression.r2 * 100).toFixed(2)}%)
+              </div>
+            </div>
+          </div>
         ) : activeTab === 'classification_tree' ? (
           <div className="validation-section" style={{
             background: '#ffffff',
@@ -601,6 +818,24 @@ const Results = () => {
             border: '1px solid #f1f5f9',
             textAlign: 'left'
           }}>
+            <div className="axioms-validation" style={{ marginTop: '0px', marginBottom: '24px' }}>
+              <h3>Axiom Validation</h3>
+              <div className="axioms-list">
+                {Object.entries(currentMethodResults.axioms).map(([axiom, passed], index) => (
+                  <div key={index} className={`axiom-item ${passed ? 'passed' : 'failed'}`}>
+                    <div className="axiom-status">
+                      {passed ? '✓' : '✗'}
+                    </div>
+                    <div className="axiom-content">
+                      <span className="axiom-name">{axiom}</span>
+                      <span className={`axiom-result ${passed ? 'pass' : 'fail'}`}>
+                        {passed ? 'PASSED' : 'FAILED'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#1e293b' }}>
               SHAP Explanations & Model Interpretation
